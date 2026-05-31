@@ -5403,7 +5403,8 @@ short spawn( short j, short pn )
 void animatesprites(int32_t x,int32_t y,short a,int32_t smoothratio)
 {
     short i, j, k, p, sect;
-    int32_t l, t1,t3,t4;
+    int32_t l, t1,t3;
+    intptr_t t4;
     spritetype *s,*t;
 
     for(j=0;j < spritesortcnt; j++)
@@ -5902,7 +5903,7 @@ void animatesprites(int32_t x,int32_t y,short a,int32_t smoothratio)
 				// Lame fix. ok for w32. Doesn't work for other plateform.
 				// How to make a differene between a timer and an address??
             {
-                l = *(int32_t *)(t4+8);
+                l = ((intptr_t *)t4)[1];
 
                 switch( l )
                 {
@@ -5950,7 +5951,7 @@ void animatesprites(int32_t x,int32_t y,short a,int32_t smoothratio)
                         break;
                 }
 
-                t->picnum += k + ( *(int32_t *)t4 ) + l * t3;
+                t->picnum += k + ( *(intptr_t *)t4 ) + l * t3;
 
                 if(l > 0)
                     while(tiles[t->picnum].dim.width == 0 && t->picnum > 0 )
@@ -7717,7 +7718,7 @@ void compilecons(void)
 	char  userconfilename[512];
 
    mymembuf = (char  *)hittype;
-   labelcode = (int32_t *)&sector[0];
+   labelcode = (intptr_t *)&sector[0];
    label = (char  *)sprite;
 
 	sprintf(userconfilename, "%s", confilename);

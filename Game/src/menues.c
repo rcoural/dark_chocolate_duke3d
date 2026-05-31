@@ -2681,15 +2681,15 @@ else
 
 				case 5:
 
-					if (SDL_WM_GrabInput(SDL_GRAB_QUERY)==SDL_GRAB_ON) 
+					if (_isMouseGrabbed()) 
 					{
-						SDL_WM_GrabInput(SDL_GRAB_OFF);
-						SDL_ShowCursor(1);
+						_grabMouse(0);
+						SDL_ShowCursor();
 					}
 					else
 					{
-						SDL_WM_GrabInput(SDL_GRAB_ON);
-						SDL_ShowCursor(0);
+						_grabMouse(1);
+						SDL_HideCursor();
 					}
 					break;
 
@@ -2732,7 +2732,7 @@ else
 
 
 			menutext(c,43+16*5,SHX(-7),PHX(-7),"MOUSE CURSOR");
-			if(SDL_WM_GrabInput(SDL_GRAB_QUERY)==SDL_GRAB_ON)
+			if(_isMouseGrabbed())
 				menutext(c+160+40,43+16*5,SHX(-7),PHX(-7),"TAKEN");
 			else
 				menutext(c+160+40,43+16*5,SHX(-7),PHX(-7),"FREE'D");

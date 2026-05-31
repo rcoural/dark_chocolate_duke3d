@@ -81,6 +81,8 @@ void _updateScreenRect(int32_t x, int32_t y, int32_t w, int32_t h);
 
 /* mouse/keystuff stuff. Also implemented in sdl_driver.c ... */
 int setupmouse(void);
+void _grabMouse(int on);
+int _isMouseGrabbed(void);
 void readmousexy(short *x, short *y);
 void readmousebstatus(short *bstatus);
 void keyhandler(void);

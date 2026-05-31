@@ -5,7 +5,13 @@
 #include "util.h"
 
 #include "SDL.h"
-#include "SDL_mixer.h"
+
+/*
+ * SDL3 port: the original used SDL_mixer's effect callback to feed the device.
+ * SDL_mixer 3.x dropped that legacy API entirely, so we now talk to the SDL3
+ * core audio API directly. MultiVoc already does all the software mixing into
+ * `_BufferStart`; here we just stream finished mix pages to the audio device.
+ */
 
 extern volatile int MV_MixPage;
 
@@ -20,8 +26,7 @@ static int _NumDivisions;
 static int _SampleRate;
 static int _remainder;
 
-static Mix_Chunk *blank;
-static unsigned char *blank_buf;
+static SDL_AudioStream *audioStream = NULL;
 
 /*
 possible todo ideas: cache sdl/sdl mixer error messages.
@@ -70,7 +75,7 @@ int DSL_Init( void )
 {
 	DSL_SetErrorCode(DSL_Ok);
 	
-	if (SDL_InitSubSystem(SDL_INIT_AUDIO|SDL_INIT_NOPARACHUTE) < 0) {
+	if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
 		DSL_SetErrorCode(DSL_SDLInitFailure);
 		
 		return DSL_Error;
@@ -84,55 +89,35 @@ void DSL_Shutdown( void )
 	DSL_StopPlayback();
 }
 
-static void mixer_callback(int chan, void *stream, int len, void *udata)
+/*
+ * SDL3 audio stream callback. SDL asks us for `additional_amount` more bytes;
+ * we satisfy it one finished MultiVoc mix page at a time. SDL_AudioStream
+ * queues whatever we hand it, so we no longer need the old partial-page
+ * (`_remainder`) bookkeeping the SDL_mixer effect callback required.
+ */
+static void SDLCALL audio_callback(void *udata, SDL_AudioStream *stream,
+                                   int additional_amount, int total_amount)
 {
-	Uint8 *stptr;
-	Uint8 *fxptr;
-	int copysize;
-	
-	/* len should equal _BufferSize, else this is screwed up */
+	(void)udata; (void)total_amount;
 
-	stptr = (Uint8 *)stream;
-	
-	if (_remainder > 0) {
-		copysize = min(len, _remainder);
-		
-		fxptr = (Uint8 *)(&_BufferStart[MV_MixPage * 
-			_BufferSize]);
-		
-		memcpy(stptr, fxptr+(_BufferSize-_remainder), copysize);
-		
-		len -= copysize;
-		_remainder -= copysize;
-		
-		stptr += copysize;
-	}
-	
-	while (len > 0) {
-		/* new buffer */
-		
+	while (additional_amount > 0) {
+		Uint8 *fxptr;
+
+		/* ask MultiVoc to mix the next page, then stream it out */
 		_CallBackFunc();
-		
-		fxptr = (Uint8 *)(&_BufferStart[MV_MixPage * 
-			_BufferSize]);
+		fxptr = (Uint8 *)(&_BufferStart[MV_MixPage * _BufferSize]);
 
-		copysize = min(len, _BufferSize);
-		
-		memcpy(stptr, fxptr, copysize);
-		
-		len -= copysize;
-		
-		stptr += copysize;
+		SDL_PutAudioStreamData(stream, fxptr, _BufferSize);
+		additional_amount -= _BufferSize;
 	}
-	
-	_remainder = len;
 }
 
 int   DSL_BeginBufferedPlayback( char *BufferStart,
       int BufferSize, int NumDivisions, unsigned SampleRate,
       int MixMode, void ( *CallBackFunc )( void ) )
 {
-	Uint16 format;
+	SDL_AudioFormat format;
+	SDL_AudioSpec spec;
 	int channels;
 	int chunksize;
 	int blah;
@@ -151,7 +136,7 @@ int   DSL_BeginBufferedPlayback( char *BufferStart,
 
 	_remainder = 0;
 	
-	format = (MixMode & SIXTEEN_BIT) ? AUDIO_S16LSB : AUDIO_U8;
+	format = (MixMode & SIXTEEN_BIT) ? SDL_AUDIO_S16LE : SDL_AUDIO_U8;
 	channels = (MixMode & STEREO) ? 2 : 1;
 
  /*
@@ -166,53 +151,38 @@ int   DSL_BeginBufferedPlayback( char *BufferStart,
 
 	if (chunksize % blah) chunksize += blah - (chunksize % blah);
 
-	if (Mix_OpenAudio(SampleRate, format, channels, chunksize) < 0) {
+	(void)chunksize;  /* SDL3 audio streams buffer for us; no chunk size needed */
+
+	SDL_zero(spec);
+	spec.freq = SampleRate;
+	spec.format = format;
+	spec.channels = channels;
+
+	/* Opens the default playback device and binds a stream to it. SDL calls
+	 * audio_callback whenever it needs more samples. */
+	audioStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+	                                        &spec, audio_callback, NULL);
+	if (audioStream == NULL) {
 		DSL_SetErrorCode(DSL_MixerInitFailure);
-		
+
 		return DSL_Error;
 	}
 
-/*
-	Mix_SetPostMix(mixer_callback, NULL);
-*/
-	/* have to use a channel because postmix will overwrite the music... */
-	Mix_RegisterEffect(0, mixer_callback, NULL, NULL);
-	
-	/* create a dummy sample just to allocate that channel */
-	blank_buf = (Uint8 *)malloc(4096);
-	memset(blank_buf, 0, 4096);
-	
-	blank = Mix_QuickLoad_RAW(blank_buf, 4096);
-		
-	Mix_PlayChannel(0, blank, -1);
-	
+	SDL_ResumeAudioStreamDevice(audioStream);
+
 	mixer_initialized = 1;
-	
+
 	return DSL_Ok;
 }
 
 void DSL_StopPlayback( void )
 {
-	if (mixer_initialized) {
-		Mix_HaltChannel(0);
+	if (audioStream != NULL) {
+		/* Also closes the audio device opened by SDL_OpenAudioDeviceStream. */
+		SDL_DestroyAudioStream(audioStream);
+		audioStream = NULL;
 	}
-	
-	if (blank != NULL) {
-		Mix_FreeChunk(blank);
-	}
-	
-	blank = NULL;
-	
-	if (blank_buf  != NULL) {
-		free(blank_buf);
-	}
-	
-	blank_buf = NULL;
-	
-	if (mixer_initialized) {
-		Mix_CloseAudio();
-	}
-	
+
 	mixer_initialized = 0;
 }
 

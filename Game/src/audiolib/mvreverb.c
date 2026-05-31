@@ -1,3 +1,4 @@
+#include <stdlib.h>   /* malloc/realloc/free: clang errors on implicit decls */
 #include "multivoc.h"
 #include "_multivc.h"
 
@@ -202,7 +203,7 @@ void MV_FPReverb(int volume)
 
 //	sprintf(err, "count: %d, old_delay: %d", count, delay);
 	//EnterCriticalSection(&reverbCS);
-	SDL_mutexP(reverbMutex);
+	SDL_LockMutex(reverbMutex);
 
 	check_buffer();
 
@@ -240,12 +241,12 @@ void MV_FPReverb(int volume)
 	}
 
 	//LeaveCriticalSection(&reverbCS);
-	SDL_mutexV(reverbMutex);
+	SDL_UnlockMutex(reverbMutex);
 }
 
 void MV_FPReverbFree(void)
 {
-	SDL_mutexP(reverbMutex);
+	SDL_LockMutex(reverbMutex);
 	//EnterCriticalSection(&reverbCS);
 	delay = 0;
 	if (reverbBuffer)
@@ -254,7 +255,7 @@ void MV_FPReverbFree(void)
 		reverbBuffer = 0;
 	}
 	//LeaveCriticalSection(&reverbCS);
-	SDL_mutexV(reverbMutex);
+	SDL_UnlockMutex(reverbMutex);
 }
 
 void MV_16BitDownmix(char *dest, int count)

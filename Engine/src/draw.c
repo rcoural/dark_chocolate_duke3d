@@ -90,9 +90,9 @@ void hlineasm4(int32_t numPixels, int32_t shade, uint32_t i4, uint32_t i5, uint8
 static int32_t rmach_eax;
 static int32_t rmach_ebx;
 static int32_t rmach_ecx;
-static int32_t rmach_edx;
+static intptr_t rmach_edx;   /* holds palookup pointer */
 static int32_t rmach_esi;
-void setuprhlineasm4(int32_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t i5, int32_t i6)
+void setuprhlineasm4(int32_t i1, int32_t i2, int32_t i3, intptr_t i4, int32_t i5, int32_t i6)
 {
     rmach_eax = i1;
     rmach_ebx = i2;
@@ -102,10 +102,10 @@ void setuprhlineasm4(int32_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t i5,
 } 
 
 
-void rhlineasm4(int32_t i1, uint8_t* texture, int32_t i3, uint32_t i4, uint32_t i5, int32_t dest)
+void rhlineasm4(int32_t i1, uint8_t* texture, int32_t i3, uint32_t i4, uint32_t i5, intptr_t dest)
 {
-    uint32_t ebp = dest - i1;
-    uint32_t rmach6b = ebp-1;
+    uintptr_t ebp = dest - i1;       /* framebuffer address: pointer-sized on 64-bit */
+    uintptr_t rmach6b = ebp-1;
     int32_t numPixels;
     
     if (i1 <= 0) return;
@@ -139,9 +139,9 @@ void rhlineasm4(int32_t i1, uint8_t* texture, int32_t i3, uint32_t i4, uint32_t 
 static int32_t rmmach_eax;
 static int32_t rmmach_ebx;
 static int32_t rmmach_ecx;
-static int32_t rmmach_edx;
+static intptr_t rmmach_edx;  /* holds palookup pointer */
 static int32_t setupTileHeight;
-void setuprmhlineasm4(int32_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t tileHeight, int32_t i6)
+void setuprmhlineasm4(int32_t i1, int32_t i2, int32_t i3, intptr_t i4, int32_t tileHeight, int32_t i6)
 {
     rmmach_eax = i1;
     rmmach_ebx = i2;
@@ -152,10 +152,10 @@ void setuprmhlineasm4(int32_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t ti
 
 
 //FCS: ????
-void rmhlineasm4(int32_t i1, intptr_t shade, int32_t colorIndex, int32_t i4, int32_t i5, int32_t dest)
+void rmhlineasm4(int32_t i1, intptr_t shade, int32_t colorIndex, int32_t i4, int32_t i5, intptr_t dest)
 {
-    uint32_t ebp = dest - i1;
-    uint32_t rmach6b = ebp-1;
+    uintptr_t ebp = dest - i1;       /* framebuffer address: pointer-sized on 64-bit */
+    uintptr_t rmach6b = ebp-1;
     int32_t numPixels;
     
     if (i1 <= 0)
@@ -295,9 +295,9 @@ int32_t tvlineasm1(int32_t i1, uint8_t  * texture, int32_t numPixels, int32_t i4
 
 
 static uint8_t  tran2shr;
-static uint32_t tran2pal_ebx;
-static uint32_t tran2pal_ecx;
-void setuptvlineasm2(int32_t i1, int32_t i2, int32_t i3)
+static uintptr_t tran2pal_ebx;  /* palookup pointers */
+static uintptr_t tran2pal_ecx;
+void setuptvlineasm2(int32_t i1, uintptr_t i2, uintptr_t i3)
 {
 	tran2shr = (i1&0x1f);
 	tran2pal_ebx = i2;
@@ -499,12 +499,12 @@ void mvlineasm4(int32_t column, intptr_t framebufferOffset)
 
 
 /* ---------------  SPRITE RENDERING METHOD (USED TO BE HIGHLY OPTIMIZED ASSEMBLY) ----------------------------*/
-static int32_t spal_eax;
+static intptr_t spal_eax;    /* holds palookup pointer */
 static int32_t smach_eax;
 static int32_t smach2_eax;
 static int32_t smach5_eax;
 static int32_t smach_ecx;
-void setupspritevline(int32_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t i5, int32_t i6)
+void setupspritevline(intptr_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t i5, int32_t i6)
 {
     spal_eax = i1;
     smach_eax = (i5<<16);
@@ -556,12 +556,12 @@ setup:
 }
 
 
-static int32_t mspal_eax;
+static intptr_t mspal_eax;
 static int32_t msmach_eax;
 static int32_t msmach2_eax;
 static int32_t msmach5_eax;
 static int32_t msmach_ecx;
-void msetupspritevline(int32_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t i5, int32_t i6)
+void msetupspritevline(intptr_t i1, int32_t i2, int32_t i3, int32_t i4, int32_t i5, int32_t i6)
 {
     mspal_eax = i1;
     msmach_eax = (i5<<16);
@@ -848,10 +848,11 @@ extern int32_t fpuasm;
 #define high32(a) ((int)(((__int64)a&(__int64)0xffffffff00000000)>>32))
 
 //FCS: Render RENDER_SLOPPED_CEILING_AND_FLOOR
-void slopevlin(intptr_t i1, uint32_t i2, int32_t i3, int32_t i4, int32_t i5, int32_t i6)
+void slopevlin(intptr_t i1, uint32_t i2, intptr_t i3, int32_t i4, int32_t i5, int32_t i6)
 {
     bitwisef2i c;
-    uint32_t ecx,eax,ebx,edx,esi,edi;
+    uint32_t ecx,eax,esi,edi;
+    uintptr_t ebx,edx;
 //This is so bad to cast asm3 to int then float :( !!!
     float a = (float)(int32_t) asm3 + asm2_f;
     i1 -= slopemach_ecx;
@@ -898,8 +899,8 @@ void slopevlin(intptr_t i1, uint32_t i2, int32_t i3, int32_t i4, int32_t i5, int
 		    edi += eax;
 		    i1 += slopemach_ecx;
 		    edx = ((edx&0xffffff00)|((((uint8_t  *)(ebx+edx))[slopemach_ebx])));
-		    ebx = *((uint32_t*)i3); // register trickery
-		    i3 -= 4;
+		    ebx = *((uintptr_t*)i3); // register trickery
+		    i3 -= sizeof(intptr_t);
 		    eax = ((eax&0xffffff00)|(*((uint8_t  *)(ebx+edx))));
 		    ebx = esi;
 

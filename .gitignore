@@ -36,3 +36,6 @@ Makefile.in
 /config.status
 /configure
 /stamp-h1
+
+# CMake build dir (incl. FetchContent SDL3/SDL3_mixer sources)
+/build/

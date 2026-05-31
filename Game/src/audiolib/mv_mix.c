@@ -1,3 +1,4 @@
+#include <stdlib.h>   /* abs(): clang errors on implicit decls */
 #include "multivoc.h"
 
 extern char  *MV_MixDestination;

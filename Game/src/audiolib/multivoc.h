@@ -125,6 +125,6 @@ void  MV_UnlockMemory( void );
 int   MV_LockMemory( void );
 
 //CRITICAL_SECTION reverbCS;
-SDL_mutex* reverbMutex;
+SDL_Mutex* reverbMutex;
 
 #endif

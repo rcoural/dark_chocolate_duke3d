@@ -25,7 +25,11 @@
 
 // Horrible horrible macro: Watcom allowed memory pointer to be cast
 // to a 32bits integer. The code is unfortunately stuffed with this :( !
-#define FP_OFF(x) ((int32_t) (x))
+// On 64-bit (Apple Silicon/arm64) casting a pointer to int32_t truncates it
+// to its low 32 bits -> bogus address & crash (e.g. initfastcolorlookup ->
+// clearbufbyte). On a flat 64-bit model a pointer's "offset" is the pointer,
+// so use intptr_t (pointer-sized).
+#define FP_OFF(x) ((intptr_t) (x))
 
 #ifndef max
 #define max(x, y)  (((x) > (y)) ? (x) : (y))
