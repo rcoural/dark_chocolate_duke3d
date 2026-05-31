@@ -12,14 +12,13 @@ education-focused, source-faithful port of *Duke Nukem 3D* — brought up to
 
 ## Download & play (macOS, Apple Silicon)
 
-1. Download the latest `dark_chocolate_duke3d-*-macos-arm64.zip` from the
+1. Download the latest `dark_chocolate_duke3d-*-macos-arm64.dmg` from the
    [**Releases**](https://github.com/rcoural/dark_chocolate_duke3d/releases) page
-   and unzip it.
-2. Copy your `DUKE3D.GRP` into the unzipped folder.
-3. **First launch** (macOS Gatekeeper — this build is not notarized):
-   right-click `dark_chocolate_duke3d.command` → **Open** → **Open**. If macOS
-   still blocks it, open Terminal in that folder and run `xattr -cr .`, then try
-   again.
+   and open it. The build is signed with a Developer ID and **notarized by
+   Apple**, so it opens with no Gatekeeper warnings.
+2. Drag the `dark_chocolate_duke3d` folder out of the disk image (e.g. to your
+   Desktop or `Applications`).
+3. Copy your `DUKE3D.GRP` into that folder.
 4. Double-click **`dark_chocolate_duke3d.command`** to play.
 
 ## Controls
