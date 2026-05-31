@@ -1,86 +1,93 @@
-Chocolate Duke3D
-================
+# dark_chocolate_duke3d
 
-Chocolate Duke Nukem 3D is the equivalent of [Chocolate Doom](http://www.chocolate-doom.org/wiki/index.php/Chocolate_Doom).
+A modern **macOS / Apple Silicon (arm64)** port of Fabien Sanglard's
+[chocolate_duke3D](https://github.com/fabiensanglard/chocolate_duke3D) — the
+education-focused, source-faithful port of *Duke Nukem 3D* — brought up to
+**SDL3** with a **CMake** build.
 
-A **port** that:
+![Duke Nukem 3D (E1L1) running on Apple Silicon](docs/screenshot.png)
 
-1. Remains as faithful as possible to the original source code.
-2. Portable and compiling in one click on Windows, OS X and Linux.
-3. Aimed at education, with lots of comments and documentation added in order to help programmers to understand and learn.
+> **You must supply your own `DUKE3D.GRP`** (the full game *or* the shareware
+> demo — you need a legal copy). No game data is included in this repository.
 
+## Download & play (macOS, Apple Silicon)
 
-Requirements
-============
+1. Download the latest `dark_chocolate_duke3d-*-macos-arm64.zip` from the
+   [**Releases**](https://github.com/rcoural/dark_chocolate_duke3d/releases) page
+   and unzip it.
+2. Copy your `DUKE3D.GRP` into the unzipped folder.
+3. **First launch** (macOS Gatekeeper — this build is not notarized):
+   right-click `dark_chocolate_duke3d.command` → **Open** → **Open**. If macOS
+   still blocks it, open Terminal in that folder and run `xattr -cr .`, then try
+   again.
+4. Double-click **`dark_chocolate_duke3d.command`** to play.
 
-[SDL](http://libsdl.org) and [SDL_mixer](http://www.libsdl.org/projects/SDL_mixer) to compile and run the code.
+## Controls
 
-An original copy of [Duke Nukem 3D](https://3drealms.com/catalog/duke-nukem-3d_27/) (specifically the DUKE3D.GRP file from the original CD in binary working directory (and with rw permissions?)).
+| Action | Key |
+| --- | --- |
+| Move / strafe | `W A S D` / arrows |
+| Turn | mouse |
+| Fire | `Ctrl` |
+| Open / use | `Space` |
+| Weapons | `1`–`9` |
+| Fullscreen | `Alt`+`Enter` |
+| Free/grab mouse | `Ctrl`+`M` |
+| Menu / back | `Esc` |
 
-Apple Silicon / SDL3 port
-=========================
+Window size: the game renders at 320×200 and scales to a 3× window by default;
+set `DUKE_SCALE` (e.g. `DUKE_SCALE=4`) to change it.
 
-This fork brings Chocolate Duke3D up to **Apple Silicon (arm64)** with a modern
-toolchain:
+## Build from source
 
-* **CMake** build (replaces the old autotools / Xcode 4 projects).
-* **SDL3** for video and input, fetched automatically via CMake `FetchContent`
-  (pinned to `release-3.4.8`) — no system SDL install needed.
-* Sound effects use the **SDL3 core audio API** directly (MultiVoc still does the
-  software mixing).
-* **MIDI music** plays through **SDL3_mixer** (fetched via CMake) using its
-  FluidSynth backend, ported to the new `MIX_*` API. FluidSynth needs a
-  SoundFont: the build links FluidSynth directly (so no `DYLD_LIBRARY_PATH` is
-  needed) and the game auto-detects Homebrew's `VintageDreamsWaves` SoundFont.
-  For better-sounding music, install a fuller General-MIDI SoundFont and point
-  to it with `DUKE_SOUNDFONT=/path/to/FluidR3_GM.sf2` (or set `TIMIDITY_CFG` to
-  use the TiMidity backend instead).
-* 64-bit fixes: `FP_OFF` and several Build-engine framebuffer pointers no longer
-  truncate on a 64-bit address space.
-
-Build on macOS (Apple Silicon or Intel):
+Requirements: **CMake** and a C/C++ toolchain (Xcode Command Line Tools).
+**SDL3** and **SDL3_mixer** are fetched automatically via CMake `FetchContent`,
+so no system SDL install is needed.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
-```
-
-Run it from a directory containing your `DUKE3D.GRP`:
-
-```sh
+# run from a directory that contains your DUKE3D.GRP:
 cd /path/to/duke3d-data && /path/to/build/chocolate-duke3d
 ```
 
-The game renders at 320x200 but the window opens at 3x (960x600) and is
-resizable; the framebuffer is scaled to fit (letterboxed). Override the factor
-with `DUKE_SCALE` (e.g. `DUKE_SCALE=4`), and toggle fullscreen at runtime with
-**Alt+Enter** or **Ctrl+Enter**.
+## Music (MIDI)
 
-> **Status:** builds and boots on arm64 (loads the GRP, initialises the SDL3
-> "cocoa" video driver, compiles the CON scripts). The remaining work is a
-> careful 64-bit audit of the `Engine/src/draw.c` software rasteriser, whose
-> x86-register-emulation helpers still stash palette/texture/framebuffer
-> pointers in 32-bit integers.
+Music is rendered through SDL3_mixer's FluidSynth backend and needs a SoundFont:
 
-Original build systems (upstream)
----------------------------------
+- The **release bundle** ships a small free SoundFont (*Vintage Dreams Waves*),
+  so music works out of the box.
+- When **building from source**, the game auto-detects a Homebrew FluidSynth
+  SoundFont, or you can point to any General-MIDI `.sf2` with
+  `DUKE_SOUNDFONT=/path/to/FluidR3_GM.sf2` for richer sound.
 
-* **Linux**: Use [Autoconf/Automake](https://www.gnu.org/software/autoconf/manual/autoconf.html#Basic-Installation)
-* **Windows**: Use Visual Studio 2005 or Visual Studio 2012 or [Autoconf/Automake](https://www.gnu.org/software/autoconf/manual/autoconf.html#Basic-Installation)
-* **OS X**: Use Xcode 4.0
+## What's different from upstream
 
+- Video, input, palette and presentation ported from **SDL 1.2 → SDL3**.
+- New **CMake** build (replaces the autotools / Visual Studio / Xcode projects);
+  SDL3 + SDL3_mixer via `FetchContent`.
+- Sound effects via the **SDL3 core audio API**; **MIDI music** via SDL3_mixer's
+  new `MIX_*` API + FluidSynth.
+- **64-bit (arm64)** correctness fixes across the renderer, the CON script VM
+  and the gameplay code.
+- Removed dead DOS-era code (audiolib hardware drivers, unused multiplayer).
 
-Contributors
-============
+See [CHANGELOG.md](CHANGELOG.md) for the full list.
 
-* **Project Initiator:** [Fabien Sanglard](https://github.com/fabiensanglard)
-* **Linux Integration:** [Juan Manuel Borges Caño](https://github.com/juanmabc)
-* **Autoconf/Automake Build System:** [darealshinji](https://github.com/darealshinji)
+## Status
 
+Builds, runs and renders both the 2D menus and the 3D world (verified on E1L1).
+Interactive play and the complete game content have not yet been exhaustively
+tested — some untested code paths may still need 64-bit fixes. Contributions and
+bug reports welcome.
 
-More Information
-================
+## License & credits
 
-* **[Review of the Duke 3D source code](http://fabiensanglard.net/duke3d/)**
-* [Simple DirectMedia Layer](https://wiki.libsdl.org/FrontPage), [SDL_Mixer](http://www.libsdl.org/projects/SDL_mixer/)
-* [Duke Nukem 3D](https://3drealms.com/catalog/duke-nukem-3d_27/)
+Based on **Fabien Sanglard's chocolate_duke3D**. The underlying **Build engine**
+is © Ken Silverman (see the per-file headers / BUILD license), and the **Duke
+Nukem 3D game source** was released by 3D Realms under the **GPLv2**. This fork
+preserves those licenses and copyright headers, is strictly non-commercial, and
+ships **no game data** — you must own and supply your own `DUKE3D.GRP`.
+
+The screenshot above is an in-game capture for documentation purposes;
+*Duke Nukem 3D* and its artwork are © their respective owners.
