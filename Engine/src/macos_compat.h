@@ -61,6 +61,6 @@
 #include <fcntl.h>
 #include <string.h>
 
-#define USER_DUMMY_NETWORK 1
+// #define USER_DUMMY_NETWORK 1   // disabled: real UDP multiplayer (mmulti.c) enabled in this fork
 
 #endif

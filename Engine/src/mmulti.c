@@ -36,7 +36,7 @@
 #define SHOWGETPACKETS 0
 #define PRINTERRORS 0
 
-#define updatecrc16(crc,dat) crc = (((crc<<8)&65535)^crctable[((((unsigned short)crc)>>8)&65535)^dat])
+#define updatecrc16(crc,dat) crc = (((crc<<8)&65535)^crctable[((((unsigned short)crc)>>8)&65535)^((unsigned char)(dat))])
 
 void Error (int errorType, char *error, ...);
 
@@ -82,7 +82,7 @@ typedef struct
 	short numplayers;
 	short gametype;              /* gametype: 1-serial,2-modem,3-net */
 	short filler;
-	char buffer[MAXPACKETSIZE];
+	unsigned char buffer[MAXPACKETSIZE];
 	long longcalladdress;
 } gcomtype;
 static gcomtype *gcom;

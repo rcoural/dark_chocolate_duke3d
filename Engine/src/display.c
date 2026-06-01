@@ -18,6 +18,9 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
+#if !defined(_WIN32)
+#include <unistd.h>   /* getpid() for the RNG seed below (implicit on macOS, explicit on Linux) */
+#endif
 #include "platform.h"
 
 #if (!defined PLATFORM_SUPPORTS_SDL)
@@ -656,9 +659,19 @@ void _platform_init(int argc, char  **argv, const char  *title, const char  *ico
 	int64_t timeElapsed;
 	char  dummyString[4096];
 
-	// FIX_00061: "ERROR: Two players have the same random ID" too frequent cuz of internet windows times
+	// Publish argc/argv for the networking layer (mmulti.c scans _argv for the
+	// "-net <cfg>" argument). These globals were never populated in the original
+	// chocolate sources, so -net was silently ignored — multiplayer init always
+	// fell through to single player.
+	_argc = argc;
+	_argv = argv;
+
+	// FIX_00061: "ERROR: Two players have the same random ID" too frequent cuz of internet windows times.
+	// Mix in the process id so two instances launched at the same moment (e.g. on
+	// the same box for testing) don't seed the RNG identically and collide on the
+	// random multiplayer ID. SDL_GetTicks() alone is ~identical across processes.
     TIMER_GetPlatformTicks(&timeElapsed);
-	srand(timeElapsed&0xFFFFFFFF);
+	srand((unsigned int)(timeElapsed ^ ((uint64_t)getpid() * 2654435761u)));
 
 	Setup_UnstableNetworking();
 

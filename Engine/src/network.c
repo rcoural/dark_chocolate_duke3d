@@ -7,6 +7,8 @@
 //
 
 #include "network.h"
+#include "mmulti_unstable.h"
+#include "mmulti_stable.h"
 
 int nNetMode = 0;
 

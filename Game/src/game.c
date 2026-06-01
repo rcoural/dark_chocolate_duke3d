@@ -1207,6 +1207,7 @@ void checksync(void)
 
       if (syncstat)
       {
+			if(getenv("MP_DIAG")){ static long _oos=0; _oos++; if((_oos%30)==1) printf("MP_DIAG OOS count=%ld\n",_oos); }
 			minitext(21,30+35+30, "Out Of Sync - Please restart game", COLOR_ON,2+8+16);
 			// FIX_00090: Removed info key. FPS were shown after CRC msg. CRC not always removed. (Turrican)
 			for(i=connecthead;i>=0;i=connectpoint2[i])
@@ -8144,6 +8145,8 @@ int main(int argc,char  **argv)
 	//		"group of known dukers who know what they are doing should be using\n"
 	//		"it. Please report new bugs at xd@m-klein.com or on DX forums. Thx!\n\n");
 	
+	setbuf(stdout, NULL);  /* unbuffered logging so output isn't lost on abnormal exit */
+
 	printf("*** Chocolate DukeNukem3D v%d.%d ***\n\n", CHOCOLATE_DUKE_REV_X, CHOCOLATE_DUKE_REV_DOT_Y);
 
 	// FIX_00033: Fake multi and AI are now fully working

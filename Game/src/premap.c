@@ -1467,6 +1467,8 @@ void enterlevel(uint8_t  g)
     ud.marker = ud.m_marker;
     ud.ffire = ud.m_ffire;
 
+    if(getenv("MP_DIAG")) printf("MP_DIAG enterlevel: numplayers=%d coop=%d (0=DM-spawn 1=coop 2=DM-nospawn) ffire=%d marker=%d\n", numplayers, ud.coop, ud.ffire, ud.marker);
+
     if( (g&MODE_DEMO) == 0 && ud.recstat == 2)
         ud.recstat = 0;
 

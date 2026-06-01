@@ -79,11 +79,13 @@ set(ENGINE_SRC
     Engine/src/cache.c
     Engine/src/display.c
     Engine/src/draw.c
-    Engine/src/dummy_multi.c
+    # dummy_multi.c dropped: real netcode (mmulti.c) now provides the multiplayer
+    # globals + functions; the two are mutually exclusive.
     Engine/src/engine.c
     Engine/src/filesystem.c
     Engine/src/fixedPoint_math.c
     Engine/src/mmulti.c
+    Engine/src/mmulti_stable_stub.c
     Engine/src/network.c
     Engine/src/tiles.c
 )
@@ -172,6 +174,12 @@ foreach(t duke_engine duke_audio duke_midi chocolate-duke3d)
         ${CMAKE_CURRENT_SOURCE_DIR}/Game/src)
     target_compile_options(${t} PRIVATE ${CHOCO_C_FLAGS})
     target_link_libraries(${t} PRIVATE SDL3::SDL3)
+    # platform.h selects the compat header: macOS uses the __APPLE__ branch
+    # (macos_compat.h); every other Unix (e.g. a Linux server) must define
+    # PLATFORM_UNIX or platform.h #errors out.
+    if(UNIX AND NOT APPLE)
+        target_compile_definitions(${t} PRIVATE PLATFORM_UNIX)
+    endif()
 endforeach()
 
 # Only the MIDI music layer needs SDL3_mixer (its headers + the MIX_* symbols).

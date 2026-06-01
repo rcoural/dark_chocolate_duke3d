@@ -42,6 +42,11 @@ void Shutdown(void);
 #endif
 #endif
 
+#if defined(__linux__) && !defined(BYTE_ORDER)
+// Linux (x86_64 / arm64) is little-endian. Override here for a big-endian target.
+#define BYTE_ORDER LITTLE_ENDIAN
+#endif
+
 #ifndef BYTE_ORDER
 #error Please define your platform.
 #endif
