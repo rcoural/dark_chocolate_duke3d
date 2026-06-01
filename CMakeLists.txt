@@ -61,6 +61,17 @@ FetchContent_Declare(SDL3_mixer
 
 FetchContent_MakeAvailable(SDL3 SDL3_mixer)
 
+# On macOS, SDL_SetWindowKeyboardGrab() only disables the system global hotkeys
+# (Mission Control's Ctrl+Arrow space-switching, Cmd+Tab, etc.) when SDL itself is
+# built with SDL_MAC_NO_SANDBOX. SDL gates it off by default so App Store (sandboxed)
+# builds don't touch the private CGS API. This fork ships a Developer-ID / notarized
+# (non-sandboxed) build, so enable it — that's what lets keyboard grab keep those
+# shortcuts from yanking focus out of the game. The CGS state is tied to our
+# WindowServer connection, so it is restored automatically when the process exits.
+if(APPLE AND TARGET SDL3-shared)
+    target_compile_definitions(SDL3-shared PRIVATE SDL_MAC_NO_SANDBOX)
+endif()
+
 # -----------------------------------------------------------------------------
 # Source lists (mirrors the original Makefile.am files)
 # -----------------------------------------------------------------------------

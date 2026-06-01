@@ -1298,6 +1298,8 @@ void _uninitengine(void)
 
 
 
+static void _grabKeyboard(int on);   /* defined below, near _grabMouse */
+
 int setupmouse(void)
 {
 
@@ -1308,6 +1310,7 @@ int setupmouse(void)
 
     SDL_SetWindowRelativeMouseMode(window, true);
     SDL_HideCursor();
+    _grabKeyboard(1);
 
     mouse_relative_x = mouse_relative_y = 0;
 
@@ -1326,6 +1329,23 @@ int setupmouse(void)
 } /* setupmouse */
 
 
+/* Match system-hotkey suppression (keyboard grab) to the mouse-grab state, so the
+ * OS's global shortcuts only get swallowed during active play and stay available in
+ * menus. On macOS this is what stops Mission Control's Ctrl+Arrow space-switching,
+ * Ctrl+Up, Cmd+Tab, ... from yanking the player out of the game (SDL must be built
+ * with SDL_MAC_NO_SANDBOX, see CMakeLists). Skipped under the headless dummy driver;
+ * DUKE_NOGRAB=1 opts out entirely. */
+static void _grabKeyboard(int on)
+{
+    const char *vdrv;
+    if (!window || getenv("DUKE_NOGRAB"))
+        return;
+    vdrv = SDL_GetCurrentVideoDriver();
+    if (vdrv && strcmp(vdrv, "dummy") == 0)
+        return;
+    SDL_SetWindowKeyboardGrab(window, on ? true : false);
+}
+
 /* Grab/free the mouse (relative mode + cursor visibility). Exposed so the
  * menu code can toggle it without touching SDL internals. */
 void _grabMouse(int on)
@@ -1337,6 +1357,7 @@ void _grabMouse(int on)
         SDL_HideCursor();
     else
         SDL_ShowCursor();
+    _grabKeyboard(on);
 }
 
 int _isMouseGrabbed(void)
