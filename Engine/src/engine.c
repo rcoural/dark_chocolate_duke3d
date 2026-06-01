@@ -4762,9 +4762,9 @@ static void ceilspritehline (int32_t x2, int32_t y)
     int32_t x1, v, bx, by;
 
     /*
-     * x = x1 + (x2-x1)t + (y1-y2)u  ³  x = 160v
-     * y = y1 + (y2-y1)t + (x2-x1)u  ³  y = (scrx-160)v
-     * z = z1 = z2                   ³  z = posz + (scry-horiz)v
+     * x = x1 + (x2-x1)t + (y1-y2)u  ï¿½  x = 160v
+     * y = y1 + (y2-y1)t + (x2-x1)u  ï¿½  y = (scrx-160)v
+     * z = z1 = z2                   ï¿½  z = posz + (scry-horiz)v
      */
 
     x1 = lastx[y];
@@ -8273,7 +8273,11 @@ void setbrightness(uint8_t  dabrightness, uint8_t  *dapal)
 static void fillpolygon(int32_t npoints)
 {
     int32_t z, zz, x1, y1, x2, y2, miny, maxy, y, xinc, cnt;
-    int32_t ox, oy, bx, by, p, day1, day2;
+    int32_t ox, oy, bx, by, day1, day2;
+    uint8_t *p;   /* pixel destination: ylookup[]+x+frameplace is a 64-bit pointer;
+                   * was int32_t here, which truncated it on 64-bit -> garbage dest ->
+                   * crash drawing the full overhead map (drawmapview, Tab=mode 2).
+                   * Matches the other scanline routines (engine.c:1422, 3795, 4457). */
     short *ptr, *ptr2;
 
     miny = 0x7fffffff;
