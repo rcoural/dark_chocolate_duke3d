@@ -157,6 +157,10 @@ void unstable_initcrc(void)
 }
 
 
+/* When non-empty, "Play Online" has written a discovered relay client config here;
+ * unstable_initmultiplayers uses it instead of scanning argv for "-net". */
+char online_cfg_path[256] = {0};
+
 long unstable_getcrc(char *buffer, short bufleng)
 {
 	long i, j;
@@ -182,25 +186,35 @@ void unstable_initmultiplayers(char damultioption, char dacomrateoption, char da
 	// clear out the packet ordering
 //	memset(&currentpacketnumber, 0, sizeof(unsigned long) * MAXPLAYERS);
 
-	for (i = _argc - 1; i > 0; i--)
-    {
-        const char *arg = _argv[i];
-        char ch = *arg;
-        if ((ch == '-') || (ch == '/'))
-        {
-			if (stricmp(arg + 1, "net") == 0)
-                break;
-        }
-    }
-
-	if ((i == 0) || (i+1 == _argc))
+	if (online_cfg_path[0])   /* "Play Online": use the discovered relay config. */
 	{
-		numplayers = 1; myconnectindex = 0;
-		connecthead = 0; connectpoint2[0] = -1;
-		return;
+		char *fake[2];
+		fake[0] = "";
+		fake[1] = online_cfg_path;
+		gcom = init_network_transport(fake, 1);
 	}
+	else
+	{
+		for (i = _argc - 1; i > 0; i--)
+		{
+			const char *arg = _argv[i];
+			char ch = *arg;
+			if ((ch == '-') || (ch == '/'))
+			{
+				if (stricmp(arg + 1, "net") == 0)
+					break;
+			}
+		}
 
-    gcom = init_network_transport(_argv, i+1);
+		if ((i == 0) || (i+1 == _argc))
+		{
+			numplayers = 1; myconnectindex = 0;
+			connecthead = 0; connectpoint2[0] = -1;
+			return;
+		}
+
+		gcom = init_network_transport(_argv, i+1);
+	}
     if (gcom == NULL)
 	{
         Error(EXIT_SUCCESS, "Network transport initialization failed!\n"
@@ -472,7 +486,7 @@ short unstable_getpacket (short *other, char *bufptr)
 				{
 								 /* GOOD! Take second half of double packet */
 #if (PRINTERRORS)
-					printf("\n%ld-%ld .û ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
+					printf("\n%ld-%ld .ï¿½ ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
 #endif
 					messleng = ((long)gcom->buffer[3]) + (((long)gcom->buffer[4])<<8);
 					lastpacketleng = gcom->numbytes-7-messleng;
@@ -492,7 +506,7 @@ short unstable_getpacket (short *other, char *bufptr)
 	if ((gcom->buffer[1]&128) == 0)           /* Single packet */
 	{
 #if (PRINTERRORS)
-		printf("\n%ld û  ",gcom->buffer[0]);
+		printf("\n%ld ï¿½  ",gcom->buffer[0]);
 #endif
 
 		messleng = gcom->numbytes-5;
@@ -505,7 +519,7 @@ short unstable_getpacket (short *other, char *bufptr)
 
 														 /* Double packet */
 #if (PRINTERRORS)
-	printf("\n%ld-%ld ûû ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
+	printf("\n%ld-%ld ï¿½ï¿½ ",gcom->buffer[0],(gcom->buffer[0]+1)&255);
 #endif
 
 	messleng = ((long)gcom->buffer[3]) + (((long)gcom->buffer[4])<<8);
@@ -881,6 +895,127 @@ static int get_udp_packet(int *ip, short *_port, void *pkt, size_t pktsize)
 }
 
 
+/* -------------------------------------------------------------------------
+ * "Play Online" server discovery.
+ *
+ * Fetch the current relay-server address ("ip:port") over plain HTTP from a
+ * configured URL, so the address can change without patching the client.
+ *
+ * The URL is NOT hard-coded here. Provide it either:
+ *   - at build time, via -DDUKE_ONLINE_URL_DEFAULT="http://your.site/file"
+ *     (the CMake build reads it from a local, gitignored online_url.txt), or
+ *   - at runtime, via the DUKE_ONLINE_URL environment variable.
+ * If neither is set the default is empty and "Play Online" is simply disabled.
+ * ------------------------------------------------------------------------- */
+#ifndef DUKE_ONLINE_URL_DEFAULT
+#define DUKE_ONLINE_URL_DEFAULT ""
+#endif
+
+static int http_get_address(char *out, int outsz)
+{
+    const char *url = getenv("DUKE_ONLINE_URL");
+    char host[128], path[256], portstr[8];
+    int port = 80;
+    struct addrinfo hints, *res = NULL, *ai;
+    int fd = -1, total = 0, n;
+    char req[512], resp[2048], *body, *sp;
+
+    if ((url == NULL) || (*url == '\0'))
+        url = DUKE_ONLINE_URL_DEFAULT;
+    if (*url == '\0') {
+        printf("online: no server URL configured "
+               "(set the DUKE_ONLINE_URL env var, or build with DUKE_ONLINE_URL_DEFAULT).\n");
+        return(0);
+    }
+
+    /* parse  http://host[:port][/path]  */
+    {
+        const char *p = url, *slash, *colon;
+        int hlen;
+        if (strncasecmp(p, "http://", 7) == 0) p += 7;
+        slash = strchr(p, '/');
+        colon = strchr(p, ':');
+        if (colon && (!slash || colon < slash)) {
+            hlen = (int)(colon - p);
+            port = atoi(colon + 1);
+        } else {
+            hlen = slash ? (int)(slash - p) : (int)strlen(p);
+        }
+        if (hlen <= 0 || hlen >= (int)sizeof(host)) return(0);
+        memcpy(host, p, hlen); host[hlen] = '\0';
+        if (slash) { strncpy(path, slash, sizeof(path)-1); path[sizeof(path)-1] = '\0'; }
+        else strcpy(path, "/");
+    }
+
+    sprintf(portstr, "%d", port);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    printf("online: looking up %s:%s%s ...\n", host, portstr, path);
+    if (getaddrinfo(host, portstr, &hints, &res) != 0)
+        return(0);
+    for (ai = res; ai != NULL; ai = ai->ai_next) {
+        fd = (int) socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+        if (fd < 0) continue;
+        if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0) break;
+        socketclose(fd); fd = -1;
+    }
+    freeaddrinfo(res);
+    if (fd < 0) return(0);
+
+    sprintf(req, "GET %s HTTP/1.0\r\nHost: %s\r\n"
+                 "User-Agent: dark-chocolate-duke3d\r\nConnection: close\r\n\r\n",
+            path, host);
+    send(fd, req, strlen(req), 0);
+
+    while ((total < (int)sizeof(resp)-1) &&
+           ((n = recv(fd, resp + total, sizeof(resp)-1-total, 0)) > 0))
+        total += n;
+    resp[total] = '\0';
+    socketclose(fd);
+
+    if (strncmp(resp, "HTTP/1.", 7) != 0) return(0);
+    sp = strchr(resp, ' ');
+    if (!sp || atoi(sp + 1) != 200) return(0);
+    body = strstr(resp, "\r\n\r\n");
+    if (!body) return(0);
+    body += 4;
+    while (*body==' ' || *body=='\r' || *body=='\n' || *body=='\t') body++;
+    {
+        int i = 0;
+        while (body[i] && body[i] != '\r' && body[i] != '\n' &&
+               body[i] != ' ' && i < outsz-1) { out[i] = body[i]; i++; }
+        out[i] = '\0';
+        if (i == 0) return(0);
+    }
+    return(1);
+}
+
+/* Discover the relay server and stage a client config for the next
+ * initmultiplayers(). Returns 1 on success. */
+int mmulti_prepare_online(void)
+{
+    char addr[64];
+    const char *path = "duke_online.cfg";
+    FILE *f;
+
+    if (!http_get_address(addr, sizeof(addr))) {
+        printf("online: could not fetch server address.\n");
+        return(0);
+    }
+    printf("online: relay server is %s\n", addr);
+
+    f = fopen(path, "w");
+    if (f == NULL) { printf("online: cannot write %s\n", path); return(0); }
+    fprintf(f, "interface 0.0.0.0:0\nmode client\nallow %s\n", addr);
+    fclose(f);
+
+    strncpy(online_cfg_path, path, sizeof(online_cfg_path)-1);
+    online_cfg_path[sizeof(online_cfg_path)-1] = '\0';
+    return(1);
+}
+
+
 static char *read_whole_file(const char *cfgfile)
 {
     char *buf;
@@ -1030,17 +1165,194 @@ static int open_udp_socket(int ip, int port)
 }
 
 /* server init. */
+/*
+ * Dedicated relay server (Phase 1: exactly 2 players).
+ *
+ * The original Build netcode is peer-to-peer: every player must reach every
+ * other player directly, which the internet's NAT makes impractical. The relay
+ * fixes that without touching the lockstep game logic: clients only ever talk to
+ * the server (an outbound connection, NAT-friendly), and the server forwards each
+ * client's packets to the other. The server is NOT a player.
+ *
+ * Handshake (leading 0,0,0 like PacketPeerGreeting so the game never mistakes
+ * these for gameplay packets):
+ *   client -> server : HELLO        (4 bytes)
+ *   server -> client : WELCOME{idx} (assigns the 1-based player slot)
+ * After both clients are welcomed the server just reflects every packet from one
+ * client to the other, verbatim.
+ */
+#define HEADER_CLIENT_HELLO   246
+#define HEADER_SERVER_WELCOME 247
+
+typedef struct
+{
+    unsigned char dummy1, dummy2, dummy3;   /* 0,0,0 -> not a game packet. */
+    unsigned char header;                   /* HEADER_CLIENT_HELLO */
+} PacketClientHello;
+
+typedef struct
+{
+    unsigned char dummy1, dummy2, dummy3;   /* 0,0,0 -> not a game packet. */
+    unsigned char header;                   /* HEADER_SERVER_WELCOME */
+    unsigned char myindex;                  /* assigned 1-based player slot */
+    unsigned char numplayers;
+} PacketServerWelcome;
+
+static int packet_is_client_hello(const unsigned char *buf, int len)
+{
+    return (len == (int) sizeof (PacketClientHello))
+        && (buf[0] == 0) && (buf[1] == 0) && (buf[2] == 0)
+        && (buf[3] == HEADER_CLIENT_HELLO);
+}
+
+/* server init: dedicated relay for two clients. Does not return until CTRL-C. */
 static int wait_for_other_players(gcomtype *gcom, int myip)
 {
-    printf("Server code NOT implemented!\n");
+    struct { int host; short port; } client[2];
+    PacketServerWelcome welcome;
+    unsigned char buf[MAXPACKETSIZE];
+    int n = 0;          /* clients connected so far. */
+    int rc, ip, i, reps;
+    short port;
+
+    (void) myip;
+    printf("server: dedicated relay, waiting for 2 players. CTRL-C to abort...\n");
+    memset(client, '\0', sizeof (client));
+    memset(&welcome, '\0', sizeof (welcome));
+    welcome.header = HEADER_SERVER_WELCOME;
+    welcome.numplayers = 2;
+
+    /* Phase A: collect two distinct clients by their HELLO. */
+    while ((n < 2) && (!ctrlc_pressed))
+    {
+        _idle();
+        rc = get_udp_packet(&ip, &port, buf, sizeof (buf));
+        if (packet_is_client_hello(buf, rc))
+        {
+            int known = 0;
+            for (i = 0; i < n; i++)
+                if ((client[i].host == ip) && (client[i].port == port))
+                    known = 1;
+            if (!known)
+            {
+                client[n].host = ip;
+                client[n].port = port;
+                printf("server: player #%d = %s:%d\n", n + 1,
+                       static_ipstring(ip), (int) port);
+                n++;
+            }
+        }
+    }
+    if (ctrlc_pressed)
+        return(0);
+
+    /* Tell each client its slot (resend a few times to ride out packet loss). */
+    for (reps = 0; reps < 10; reps++)
+    {
+        for (i = 0; i < 2; i++)
+        {
+            welcome.myindex = (unsigned char) (i + 1);
+            send_udp_packet(client[i].host, client[i].port,
+                            &welcome, sizeof (welcome));
+        }
+        _idle();
+    }
+    printf("server: both players in, relaying.\n");
+
+    /* Phase B: reflect every packet from one client to the other, forever. */
+    while (!ctrlc_pressed)
+    {
+        _idle();
+        rc = get_udp_packet(&ip, &port, buf, sizeof (buf));
+        if (rc <= 0)
+            continue;
+
+        if (packet_is_client_hello(buf, rc))   /* lost welcome -> resend it. */
+        {
+            for (i = 0; i < 2; i++)
+                if ((client[i].host == ip) && (client[i].port == port))
+                {
+                    welcome.myindex = (unsigned char) (i + 1);
+                    send_udp_packet(client[i].host, client[i].port,
+                                    &welcome, sizeof (welcome));
+                }
+            continue;
+        }
+
+        if ((ip == client[0].host) && (port == client[0].port))
+            send_udp_packet(client[1].host, client[1].port, buf, rc);
+        else if ((ip == client[1].host) && (port == client[1].port))
+            send_udp_packet(client[0].host, client[0].port, buf, rc);
+    }
     return(0);
 }
 
-/* client init. */
+/* client init: connect to the relay server (Phase 1: exactly 2 players). */
 static int connect_to_server(gcomtype *gcom, int myip)
 {
-    printf("Client code NOT implemented!\n");
-    return(0);
+    PacketClientHello hello;
+    PacketServerWelcome welcome;
+    unsigned long resendat;
+    int serverip, rc, ip, other;
+    short serverport, port;
+    int myindex = 0, nump = 0;
+
+    /* The server's address is the single 'allow' line in the client config.
+     * parse_udp_config fills the first 'allow' into slot 0 (numplayers starts at
+     * 0), so that's where the relay address is. */
+    serverip   = allowed_addresses[0].host;
+    serverport = allowed_addresses[0].port;
+    if (serverip == 0)
+    {
+        printf("client: need an 'allow <server-ip:port>' line in the config.\n");
+        return(0);
+    }
+
+    memset(&hello, '\0', sizeof (hello));
+    hello.header = HEADER_CLIENT_HELLO;
+    printf("client: connecting to server %s:%d ...\n",
+           static_ipstring(serverip), (int) serverport);
+
+    resendat = getticks();
+    while ((!myindex) && (!ctrlc_pressed))
+    {
+        if (resendat <= getticks())
+        {
+            send_udp_packet(serverip, serverport, &hello, sizeof (hello));
+            resendat += CLIENT_POLL_DELAY;
+        }
+        _idle();
+        rc = get_udp_packet(&ip, &port, &welcome, sizeof (welcome));
+        if ((rc >= (int) sizeof (welcome))
+            && (ip == serverip) && (port == serverport)
+            && (welcome.header == HEADER_SERVER_WELCOME))
+        {
+            myindex = welcome.myindex;
+            nump    = welcome.numplayers;
+        }
+    }
+    if (ctrlc_pressed)
+    {
+        printf("client: connection aborted.\n");
+        return(0);
+    }
+
+    /* Route all peer traffic through the server: the "other" player's slot is
+     * the relay's address, so sends go to it and packets relayed back from it
+     * are recognised as coming from that player. The local player keeps its own
+     * slot (and slot 0, by convention). */
+    memset(allowed_addresses, '\0', sizeof (allowed_addresses));
+    allowed_addresses[0].host = myip;        allowed_addresses[0].port = udpport;
+    allowed_addresses[myindex].host = myip;  allowed_addresses[myindex].port = udpport;
+    other = (myindex == 1) ? 2 : 1;
+    allowed_addresses[other].host = serverip; allowed_addresses[other].port = serverport;
+
+    gcom->numplayers     = nump;
+    gcom->myconnectindex = myindex;
+
+    printf("client: connected as player #%d of %d via relay %s:%d.\n",
+           myindex, nump, static_ipstring(serverip), (int) serverport);
+    return(1);
 }
 
 typedef struct

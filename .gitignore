@@ -39,3 +39,11 @@ Makefile.in
 
 # CMake build dir (incl. FetchContent SDL3/SDL3_mixer sources)
 /build/
+
+# Relay server: keep its Makefile (the global Makefile rule above hides it),
+# ignore the compiled binary.
+!server/Makefile
+server/duke3d-relay
+
+# "Play Online" discovery URL for local builds — never commit your server's URL.
+online_url.txt

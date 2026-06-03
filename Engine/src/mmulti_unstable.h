@@ -16,4 +16,8 @@ short unstable_getpacket(short *other, char *bufptr);
 void unstable_flushpackets(void);
 void unstable_genericmultifunction(long other, char *bufptr, long messleng, long command);
 
+/* "Play Online": fetch the relay-server address over HTTP and stage a client
+ * config for the next initmultiplayers(). Returns 1 on success. */
+int mmulti_prepare_online(void);
+
 #endif

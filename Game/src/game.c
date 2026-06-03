@@ -90,6 +90,7 @@ uint16_t g_bStun = 0;
 
 char confilename[128] = {"GAME.CON"};
 char boardfilename[128] = {0};
+int online_requested = 0;   /* set by -online: discover relay server + join. */
 uint8_t  waterpal[768], slimepal[768], titlepal[768], drealms[768], endingpal[768];
 char  firstdemofile[80] = { '\0' };
 
@@ -1173,6 +1174,8 @@ void dispVersion(void)
 void checksync(void)
 {
       int32_t i;
+
+      if(getenv("MP_DIAG")){ static long _t=0; if((++_t % 120)==0) printf("MP_DIAG synctic=%ld totalclock=%ld\n", _t, (long)totalclock); }
 
       for(i=connecthead;i>=0;i=connectpoint2[i])
             if (syncvalhead[i] == syncvaltottail) break;
@@ -7169,8 +7172,17 @@ void checkcommandline(int argc,char  **argv)
             {
                 i += 2;  // skip filename.
 				// FIX_00044: Markers are now on by default in netgames (as real DOS duke3d)
-				ud.m_marker = ud.marker = 1; 
+				ud.m_marker = ud.marker = 1;
                 continue;
+            }
+
+			if (stricmp(c, "-online") == 0)
+            {
+				// "Play Online": discover the relay server over HTTP and join it.
+				online_requested = 1;
+				ud.m_marker = ud.marker = 1;
+				i++;
+				continue;
             }
 
             if (stricmp(c, "-game_dir") == 0)
@@ -7774,6 +7786,22 @@ void Startup(void)
    tiles[MIRROR].dim.width = tiles[MIRROR].dim.height = 0;
 
    for(i=0;i<MAXPLAYERS;i++) playerreadyflag[i] = 0;
+
+   if(online_requested)
+   {
+       extern int mmulti_prepare_online(void);   /* mmulti.c */
+       printf("Connecting to online server...\n");
+       if(mmulti_prepare_online())
+       {
+           strcpy(boardfilename,"E1L1.map");   /* the map the relay server runs */
+           ud.m_coop = ud.coop = 0;            /* dukematch; must match the server */
+           ud.m_monsters_off = ud.monsters_off = 1;   /* deathmatch: no monsters */
+           ud.m_player_skill = ud.player_skill = 0;
+       }
+       else
+           printf("Online connect unavailable; starting single player.\n");
+   }
+
    initmultiplayers(0,0,0);
 
    if(numplayers > 1)

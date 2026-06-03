@@ -182,6 +182,30 @@ foreach(t duke_engine duke_audio duke_midi chocolate-duke3d)
     endif()
 endforeach()
 
+# -----------------------------------------------------------------------------
+# "Play Online" discovery URL - deliberately NOT hard-coded in the source so it
+# never lands in a commit. Set it for your own builds one of two ways:
+#   * drop the URL on a single line in a local online_url.txt (gitignored), or
+#   * pass -DDUKE_ONLINE_URL=http://your.site/file to cmake.
+# The resulting binary bakes it in (ship that build yourself); with neither set,
+# "Play Online" is simply disabled. At runtime the DUKE_ONLINE_URL env var still
+# overrides whatever was baked in. The URL itself is not echoed to the build log.
+# -----------------------------------------------------------------------------
+set(DUKE_ONLINE_URL "" CACHE STRING "Relay-server discovery URL baked into the build")
+if(NOT DUKE_ONLINE_URL AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/online_url.txt")
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/online_url.txt" _online_url_lines)
+    if(_online_url_lines)
+        list(GET _online_url_lines 0 DUKE_ONLINE_URL)
+        string(STRIP "${DUKE_ONLINE_URL}" DUKE_ONLINE_URL)
+    endif()
+endif()
+if(DUKE_ONLINE_URL)
+    message(STATUS "Play Online: discovery URL configured (from cache or online_url.txt).")
+    target_compile_definitions(duke_engine PRIVATE "DUKE_ONLINE_URL_DEFAULT=\"${DUKE_ONLINE_URL}\"")
+else()
+    message(STATUS "Play Online: no discovery URL baked in (set online_url.txt or DUKE_ONLINE_URL env).")
+endif()
+
 # Only the MIDI music layer needs SDL3_mixer (its headers + the MIX_* symbols).
 target_link_libraries(duke_midi PRIVATE SDL3_mixer::SDL3_mixer)
 
