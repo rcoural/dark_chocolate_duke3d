@@ -2903,7 +2903,11 @@ uint8_t  parse(void)
             parseifelse( (( hittype[g_i].floorz - hittype[g_i].ceilingz ) >> 8 ) < *insptr);
             break;
         case 63:
-            parseifelse( sync[g_p].bits&(1<<29));
+            // ifhitspace: historically the "use/Open" action (bit 29), which used
+            // to be bound to Space. With modern controls Open moved to E and Space
+            // is Jump, so also accept Jump (bit 0) -- keeps "press space" prompts
+            // (notably the restart-on-death screen) working on the spacebar.
+            parseifelse( (sync[g_p].bits&(1<<29)) || (sync[g_p].bits&1) );
             break;
         case 64:
             parseifelse(sector[g_sp->sectnum].ceilingstat&1);

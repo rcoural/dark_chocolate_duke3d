@@ -23,16 +23,22 @@ education-focused, source-faithful port of *Duke Nukem 3D* — brought up to
 
 ## Controls
 
+Modern FPS defaults (mouse-look on):
+
 | Action | Key |
 | --- | --- |
-| Move / strafe | `W A S D` / arrows |
-| Turn | mouse |
-| Fire | `Ctrl` |
-| Open / use | `Space` |
+| Move / strafe | `W` `A` `S` `D` (arrows / `,` `.`) |
+| Look / turn | mouse |
+| Fire | mouse left button / `Ctrl` |
+| Jump | `Space` |
+| Open / use | `E` / mouse right button |
+| Crouch | `Z` |
 | Weapons | `1`–`9` |
 | Fullscreen | `Alt`+`Enter` |
 | Free/grab mouse | `Ctrl`+`M` |
 | Menu / back | `Esc` |
+
+Rebind anything in **Options → Keyboard / Mouse** (sensitivity and Y-invert too).
 
 Window size: the game renders at 320×200 and scales to a 3× window by default;
 set `DUKE_SCALE` (e.g. `DUKE_SCALE=4`) to change it.

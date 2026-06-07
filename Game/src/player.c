@@ -1788,7 +1788,7 @@ void displayweapon(short snum)
 #define MAXANGVEL    127
 #define MAXHORIZ     127
 
-int32_t myaimmode = 0, myaimstat = 0, omyaimstat = 0;
+int32_t myaimmode = 1, myaimstat = 0, omyaimstat = 0;   // modern default: mouse-look on (mouse Y aims)
 
 void getinput(short snum)
 {

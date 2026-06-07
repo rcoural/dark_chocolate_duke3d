@@ -230,7 +230,7 @@ void CONFIG_SetDefaults( void )
    mouseSensitivity_Y = mouseSensitivity_X;
 
    // game
-   ps[0].aim_mode = 0;
+   ps[0].aim_mode = 1;   // modern default: free mouse-look (view doesn't auto-level)
    ud.screen_size = 8;
    ud.extended_screen_size = 0;
    ud.screen_tilting = 1;
@@ -348,18 +348,24 @@ void CONFIG_SetupMouse( int32 scripthandle )
    char  temp[80];
    int32 function, scale;
 
+   // Modern defaults, used when duke3d.cfg has no MouseButton entries:
+   // left click = Fire, right click = Open/Use. An existing cfg overrides below
+   // (only non-empty entries override, so the defaults survive a partial cfg).
+   CONTROL_MapButton( CONFIG_FunctionNameToNum("Fire"), 0, false );
+   CONTROL_MapButton( CONFIG_FunctionNameToNum("Open"), 1, false );
+
    for (i=0;i<MAXMOUSEBUTTONS;i++)
       {
       sprintf(str,"MouseButton%d",i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp);
-      function = CONFIG_FunctionNameToNum(temp);
-      CONTROL_MapButton( function, i, false );
+      if (temp[0])
+         CONTROL_MapButton( CONFIG_FunctionNameToNum(temp), i, false );
       sprintf(str,"MouseButtonClicked%d",i);
       memset(temp,0,sizeof(temp));
       SCRIPT_GetString( scripthandle,"Controls", str,temp);
-      function = CONFIG_FunctionNameToNum(temp);
-      CONTROL_MapButton( function, i, true );
+      if (temp[0])
+         CONTROL_MapButton( CONFIG_FunctionNameToNum(temp), i, true );
       }
    // map over the axes
    for (i=0;i<MAXMOUSEAXES;i++)
