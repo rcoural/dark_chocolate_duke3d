@@ -5903,7 +5903,15 @@ void animatesprites(int32_t x,int32_t y,short a,int32_t smoothratio)
 				// Lame fix. ok for w32. Doesn't work for other plateform.
 				// How to make a differene between a timer and an address??
             {
-                l = ((intptr_t *)t4)[1];
+                // FIX (64-bit port): the original DOS code read the action's
+                // viewtype via "l = *(long *)(t4+8);" -- byte offset 8 selected
+                // field index 2 (viewtype) when script[] elements were 4-byte
+                // longs. In this 64-bit port script[] elements are 8-byte
+                // intptr_t, so field 2 lives at index [2] (byte offset 16), not
+                // [1]. Using [1] read 'numframes' instead of 'viewtype', which
+                // made effect/enemy sprites (EXPLOSION2 etc.) animate their
+                // picnum by numframes*frame, smearing across the enemy tiles.
+                l = ((intptr_t *)t4)[2];
 
                 switch( l )
                 {
